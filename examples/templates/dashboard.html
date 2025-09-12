@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orbit Bhyve Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-connected { background-color: #4CAF50; }
+        .status-disconnected { background-color: #f44336; }
+        .status-error { background-color: #ff9800; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .devices-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .device-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .device-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .device-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .device-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .device-status {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .status-online {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .status-offline {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+
+        .device-info {
+            margin-bottom: 20px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .info-label {
+            font-weight: 500;
+            color: #666;
+        }
+
+        .info-value {
+            color: #333;
+        }
+
+        .watering-status {
+            background: linear-gradient(45deg, #2196F3, #21CBF3);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .watering-active {
+            background: linear-gradient(45deg, #4CAF50, #8BC34A);
+        }
+
+        .watering-idle {
+            background: linear-gradient(45deg, #9E9E9E, #BDBDBD);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .control-group label {
+            font-size: 0.9em;
+            font-weight: 500;
+            color: #666;
+        }
+
+        .control-group input, .control-group select {
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.9em;
+            transition: border-color 0.3s ease;
+        }
+
+        .control-group input:focus, .control-group select:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #2196F3, #21CBF3);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(45deg, #1976D2, #1E88E5);
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #f44336, #e57373);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: linear-gradient(45deg, #d32f2f, #ef5350);
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #4CAF50, #8BC34A);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: linear-gradient(45deg, #388E3C, #689F38);
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .mode-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .mode-btn.active {
+            background: #2196F3;
+            color: white;
+            border-color: #2196F3;
+        }
+
+        .mode-btn:hover:not(.active) {
+            border-color: #2196F3;
+            color: #2196F3;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: none;
+        }
+
+        .success-message {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: none;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #2196F3, #21CBF3);
+            color: white;
+            border: none;
+            font-size: 1.5em;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(33, 150, 243, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 25px rgba(33, 150, 243, 0.4);
+        }
+
+        @media (max-width: 768px) {
+            .devices-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .mode-controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌱 Orbit Bhyve Dashboard</h1>
+            <p>Real-time irrigation monitoring and control</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="connection-status">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span id="connectionStatus">Disconnected</span>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button class="btn btn-success" id="connectBtn" onclick="connectToBhyve()">
+                    Connect
+                </button>
+                <div id="lastUpdate">
+                    Last updated: <span id="lastUpdateTime">Never</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <p>🔄 Loading devices...</p>
+        </div>
+
+        <div class="devices-grid" id="devicesGrid">
+            <!-- Devices will be populated here -->
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="refreshDevices()" title="Refresh Devices">
+        🔄
+    </button>
+
+    <script>
+        let devices = {};
+        let connectionStatus = 'disconnected';
+
+        // Update connection status
+        function updateConnectionStatus(status) {
+            connectionStatus = status;
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('connectionStatus');
+            const connectBtn = document.getElementById('connectBtn');
+            
+            indicator.className = 'status-indicator';
+            
+            if (status === 'connected') {
+                indicator.classList.add('status-connected');
+                statusText.textContent = 'Connected';
+                connectBtn.style.display = 'none';
+            } else if (status === 'disconnected') {
+                indicator.classList.add('status-disconnected');
+                statusText.textContent = 'Disconnected';
+                connectBtn.style.display = 'inline-block';
+            } else {
+                indicator.classList.add('status-error');
+                statusText.textContent = status;
+                connectBtn.style.display = 'inline-block';
+            }
+        }
+
+        // Show message
+        function showMessage(message, type = 'error') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
+            messageDiv.textContent = message;
+            messageDiv.style.display = 'block';
+            
+            const container = document.querySelector('.container');
+            container.insertBefore(messageDiv, container.firstChild);
+            
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 5000);
+        }
+
+        // Format time
+        function formatTime(timestamp) {
+            if (!timestamp) return 'Never';
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString();
+        }
+
+        // Create device card HTML
+        function createDeviceCard(deviceId, device) {
+            const isWatering = device.is_watering;
+            const isOnline = device.is_online;
+            const runMode = device.run_mode;
+            
+            return `
+                <div class="device-card" data-device-id="${deviceId}">
+                    <div class="device-header">
+                        <div class="device-name">${device.name}</div>
+                        <div class="device-status ${isOnline ? 'status-online' : 'status-offline'}">
+                            ${isOnline ? '🟢 Online' : '🔴 Offline'}
+                        </div>
+                    </div>
+                    
+                    <div class="device-info">
+                        <div class="info-row">
+                            <span class="info-label">Type:</span>
+                            <span class="info-value">${device.type}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Mode:</span>
+                            <span class="info-value">${runMode.toUpperCase()}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Stations:</span>
+                            <span class="info-value">${device.num_stations}</span>
+                        </div>
+                        ${device.firmware_version ? `
+                        <div class="info-row">
+                            <span class="info-label">Firmware:</span>
+                            <span class="info-value">${device.firmware_version}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="watering-status ${isWatering ? 'watering-active' : 'watering-idle'}">
+                        ${isWatering ? '💧 Watering in Progress' : '💧 Idle'}
+                        ${isWatering && device.current_watering ? `
+                            <div style="margin-top: 5px; font-size: 0.9em;">
+                                Station ${device.current_watering.current_station} - 
+                                ${Math.floor(device.current_watering.time_remaining / 60)}:${(device.current_watering.time_remaining % 60).toString().padStart(2, '0')} remaining
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="mode-controls">
+                        <button class="mode-btn ${runMode === 'auto' ? 'active' : ''}" 
+                                onclick="setDeviceMode('${deviceId}', 'auto')" 
+                                ${!isOnline ? 'disabled' : ''}>
+                            Auto
+                        </button>
+                        <button class="mode-btn ${runMode === 'manual' ? 'active' : ''}" 
+                                onclick="setDeviceMode('${deviceId}', 'manual')" 
+                                ${!isOnline ? 'disabled' : ''}>
+                            Manual
+                        </button>
+                        <button class="mode-btn ${runMode === 'off' ? 'active' : ''}" 
+                                onclick="setDeviceMode('${deviceId}', 'off')" 
+                                ${!isOnline ? 'disabled' : ''}>
+                            Off
+                        </button>
+                    </div>
+                    
+                    <div class="controls">
+                        <div class="control-group">
+                            <label>Station</label>
+                            <select id="station-${deviceId}">
+                                ${Array.from({length: device.num_stations}, (_, i) => 
+                                    `<option value="${i + 1}">Station ${i + 1}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>Duration (minutes)</label>
+                            <input type="number" id="duration-${deviceId}" value="5" min="1" max="60">
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary" 
+                                onclick="startWatering('${deviceId}')" 
+                                ${!isOnline ? 'disabled' : ''}>
+                            Start Watering
+                        </button>
+                        <button class="btn btn-danger" 
+                                onclick="stopWatering('${deviceId}')" 
+                                ${!isOnline ? 'disabled' : ''}>
+                            Stop All
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Update devices display
+        function updateDevicesDisplay() {
+            const grid = document.getElementById('devicesGrid');
+            const loading = document.getElementById('loading');
+            
+            if (Object.keys(devices).length === 0) {
+                loading.style.display = 'block';
+                grid.innerHTML = '';
+                return;
+            }
+            
+            loading.style.display = 'none';
+            grid.innerHTML = Object.entries(devices)
+                .map(([deviceId, device]) => createDeviceCard(deviceId, device))
+                .join('');
+        }
+
+        // Start watering
+        async function startWatering(deviceId) {
+            const station = document.getElementById(`station-${deviceId}`).value;
+            const duration = parseInt(document.getElementById(`duration-${deviceId}`).value) * 60; // Convert to seconds
+            
+            try {
+                const response = await fetch(`/api/device/${deviceId}/start_watering`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        station: parseInt(station),
+                        duration: duration
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    setTimeout(refreshDevices, 1000);
+                } else {
+                    showMessage(result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Failed to start watering: ' + error.message, 'error');
+            }
+        }
+
+        // Stop watering
+        async function stopWatering(deviceId) {
+            try {
+                const response = await fetch(`/api/device/${deviceId}/stop_watering`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    setTimeout(refreshDevices, 1000);
+                } else {
+                    showMessage(result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Failed to stop watering: ' + error.message, 'error');
+            }
+        }
+
+        // Set device mode
+        async function setDeviceMode(deviceId, mode) {
+            try {
+                const response = await fetch(`/api/device/${deviceId}/set_mode`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ mode: mode })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    setTimeout(refreshDevices, 1000);
+                } else {
+                    showMessage(result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Failed to set device mode: ' + error.message, 'error');
+            }
+        }
+
+        // Connect to Bhyve
+        async function connectToBhyve() {
+            const connectBtn = document.getElementById('connectBtn');
+            connectBtn.disabled = true;
+            connectBtn.textContent = 'Connecting...';
+            
+            try {
+                const response = await fetch('/api/connect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    setTimeout(refreshDevices, 1000);
+                } else {
+                    showMessage(result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Failed to connect: ' + error.message, 'error');
+            } finally {
+                connectBtn.disabled = false;
+                connectBtn.textContent = 'Connect';
+            }
+        }
+
+        // Refresh devices
+        async function refreshDevices() {
+            try {
+                const response = await fetch('/api/devices');
+                const data = await response.json();
+                
+                devices = data.devices || {};
+                updateConnectionStatus(data.connection_status);
+                
+                if (data.last_update) {
+                    document.getElementById('lastUpdateTime').textContent = formatTime(data.last_update);
+                }
+                
+                updateDevicesDisplay();
+            } catch (error) {
+                console.error('Failed to refresh devices:', error);
+                showMessage('Failed to refresh devices: ' + error.message, 'error');
+            }
+        }
+
+        // Auto-refresh every 5 seconds
+        setInterval(refreshDevices, 5000);
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshDevices();
+        });
+    </script>
+</body>
+</html>

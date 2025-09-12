@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bhyve MQTT Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .status-bar {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .status-item {
+            display: inline-block;
+            margin: 0 20px;
+            text-align: center;
+        }
+
+        .status-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .status-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .status-connected {
+            color: #28a745;
+        }
+
+        .status-disconnected {
+            color: #dc3545;
+        }
+
+        .devices-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .device-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .device-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+
+        .device-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .device-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .device-mode {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .mode-auto {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .mode-manual {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .watering-status {
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .watering-active {
+            background: #e8f5e8;
+            border: 2px solid #4caf50;
+            color: #2e7d32;
+        }
+
+        .watering-idle {
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            color: #666;
+        }
+
+        .watering-info {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .watering-details {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .control-input {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .control-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(78, 205, 196, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .connect-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #c62828;
+        }
+
+        .success-message {
+            background: #e8f5e8;
+            color: #2e7d32;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #4caf50;
+        }
+
+        .zones-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .zones-title {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .zone-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .zone-item:last-child {
+            border-bottom: none;
+        }
+
+        .zone-name {
+            font-weight: 500;
+        }
+
+        .zone-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .zone-active {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .zone-inactive {
+            background: #f5f5f5;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌱 Bhyve MQTT Dashboard</h1>
+            <p>Real-time monitoring and control via MQTT</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-label">MQTT Status</div>
+                <div class="status-value" id="mqtt-status">Disconnected</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Devices</div>
+                <div class="status-value" id="device-count">0</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Last Update</div>
+                <div class="status-value" id="last-update">Never</div>
+            </div>
+        </div>
+
+        <div class="connect-section" id="connect-section">
+            <button class="btn btn-primary" onclick="connectMQTT()">
+                <span id="connect-text">Connect to MQTT</span>
+                <span id="connect-loading" class="loading" style="display: none;"></span>
+            </button>
+        </div>
+
+        <div id="devices-container" style="display: none;">
+            <div class="devices-grid" id="devices-grid">
+                <!-- Devices will be populated here -->
+            </div>
+        </div>
+
+        <div id="messages"></div>
+    </div>
+
+    <script>
+        let devices = {};
+        let mqttConnected = false;
+        let refreshInterval;
+
+        // Connect to MQTT
+        async function connectMQTT() {
+            const connectBtn = document.getElementById('connect-text');
+            const loading = document.getElementById('connect-loading');
+            const connectSection = document.getElementById('connect-section');
+            
+            connectBtn.style.display = 'none';
+            loading.style.display = 'inline-block';
+            
+            try {
+                const response = await fetch('/api/connect', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('Connecting to MQTT broker...', 'success');
+                    connectSection.style.display = 'none';
+                    startPolling();
+                } else {
+                    showMessage(`Failed to connect: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Connection error: ${error.message}`, 'error');
+            } finally {
+                connectBtn.style.display = 'inline';
+                loading.style.display = 'none';
+            }
+        }
+
+        // Start polling for device data
+        function startPolling() {
+            refreshInterval = setInterval(updateDevices, 2000);
+            updateDevices(); // Initial load
+        }
+
+        // Update device data
+        async function updateDevices() {
+            try {
+                const response = await fetch('/api/devices');
+                const data = await response.json();
+                
+                devices = data.devices;
+                mqttConnected = data.mqtt_connected;
+                
+                updateStatusBar(data);
+                updateDevicesGrid();
+                
+            } catch (error) {
+                console.error('Error updating devices:', error);
+                showMessage('Error updating device data', 'error');
+            }
+        }
+
+        // Update status bar
+        function updateStatusBar(data) {
+            document.getElementById('mqtt-status').textContent = data.mqtt_connected ? 'Connected' : 'Disconnected';
+            document.getElementById('mqtt-status').className = `status-value ${data.mqtt_connected ? 'status-connected' : 'status-disconnected'}`;
+            document.getElementById('device-count').textContent = Object.keys(devices).length;
+            document.getElementById('last-update').textContent = new Date(data.timestamp).toLocaleTimeString();
+        }
+
+        // Update devices grid
+        function updateDevicesGrid() {
+            const container = document.getElementById('devices-container');
+            const grid = document.getElementById('devices-grid');
+            
+            if (Object.keys(devices).length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            
+            container.style.display = 'block';
+            grid.innerHTML = '';
+            
+            Object.values(devices).forEach(device => {
+                const deviceCard = createDeviceCard(device);
+                grid.appendChild(deviceCard);
+            });
+        }
+
+        // Create device card
+        function createDeviceCard(device) {
+            const card = document.createElement('div');
+            card.className = 'device-card';
+            
+            const isWatering = device.is_watering;
+            const wateringStation = device.watering_station;
+            const mode = device.mode || 'unknown';
+            
+            card.innerHTML = `
+                <div class="device-header">
+                    <div class="device-name">${device.name}</div>
+                    <div class="device-mode mode-${mode}">${mode}</div>
+                </div>
+                
+                <div class="watering-status ${isWatering ? 'watering-active' : 'watering-idle'}">
+                    <div class="watering-info">
+                        ${isWatering ? `🌊 Watering Station ${wateringStation}` : '💧 Idle'}
+                    </div>
+                    <div class="watering-details">
+                        ${isWatering ? 
+                            `Started: ${new Date(device.watering_status.started_at).toLocaleTimeString()}` : 
+                            'Ready for watering'
+                        }
+                    </div>
+                </div>
+                
+                <div class="controls">
+                    <div class="control-group">
+                        <label class="control-label">Station</label>
+                        <select class="control-input" id="station-${device.id}">
+                            ${generateStationOptions(device.zones)}
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label class="control-label">Duration (minutes)</label>
+                        <input type="number" class="control-input" id="duration-${device.id}" 
+                               value="5" min="1" max="60">
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn btn-success" onclick="startWatering('${device.id}')" 
+                            ${isWatering ? 'disabled' : ''}>
+                        ${isWatering ? 'Watering...' : 'Start Watering'}
+                    </button>
+                    <button class="btn btn-danger" onclick="stopWatering('${device.id}')" 
+                            ${!isWatering ? 'disabled' : ''}>
+                        Stop Watering
+                    </button>
+                </div>
+                
+                ${device.zones && Object.keys(device.zones).length > 0 ? `
+                    <div class="zones-info">
+                        <div class="zones-title">Zones</div>
+                        ${Object.entries(device.zones).map(([station, zone]) => `
+                            <div class="zone-item">
+                                <span class="zone-name">Station ${station}: ${zone.name || 'Unnamed'}</span>
+                                <span class="zone-status ${wateringStation == station ? 'zone-active' : 'zone-inactive'}">
+                                    ${wateringStation == station ? 'Active' : 'Inactive'}
+                                </span>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            `;
+            
+            return card;
+        }
+
+        // Generate station options
+        function generateStationOptions(zones) {
+            if (!zones || Object.keys(zones).length === 0) {
+                return '<option value="1">Station 1</option>';
+            }
+            
+            return Object.entries(zones).map(([station, zone]) => 
+                `<option value="${station}">Station ${station}: ${zone.name || 'Unnamed'}</option>`
+            ).join('');
+        }
+
+        // Start watering
+        async function startWatering(deviceId) {
+            const station = document.getElementById(`station-${deviceId}`).value;
+            const duration = document.getElementById(`duration-${deviceId}`).value;
+            
+            try {
+                const response = await fetch(`/api/device/${deviceId}/start_watering`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ station: parseInt(station), duration: parseInt(duration) * 60 })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage(`Started watering station ${station} for ${duration} minutes`, 'success');
+                } else {
+                    showMessage(`Failed to start watering: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Error starting watering: ${error.message}`, 'error');
+            }
+        }
+
+        // Stop watering
+        async function stopWatering(deviceId) {
+            try {
+                const response = await fetch(`/api/device/${deviceId}/stop_watering`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('Stopped watering', 'success');
+                } else {
+                    showMessage(`Failed to stop watering: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Error stopping watering: ${error.message}`, 'error');
+            }
+        }
+
+        // Show message
+        function showMessage(message, type) {
+            const messagesContainer = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `${type}-message`;
+            messageDiv.textContent = message;
+            
+            messagesContainer.appendChild(messageDiv);
+            
+            // Remove message after 5 seconds
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, 5000);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('MQTT Dashboard loaded');
+        });
+    </script>
+</body>
+</html>
