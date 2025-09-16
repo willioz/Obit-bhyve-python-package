@@ -38,6 +38,7 @@ echo "📁 Creating directories..."
 mkdir -p ssl
 mkdir -p logs
 mkdir -p data
+mkdir -p mosquitto
 
 # Check if .env file exists
 if [ ! -f .env ]; then
@@ -61,8 +62,12 @@ if [ ! -f mosquitto/passwd ]; then
     echo "🔐 Creating MQTT password file..."
     echo "Please enter MQTT broker password:"
     read -s MQTT_PASSWORD
-    echo "mqtt_user:$MQTT_PASSWORD" | docker run --rm -i eclipse-mosquitto:2.0 mosquitto_passwd -c - > mosquitto/passwd
-    echo "✅ MQTT password file created"
+    # Generate password file inside a temporary container and write it to ./mosquitto/passwd
+    docker run --rm \
+      -v "$(pwd)/mosquitto:/mosquitto/config" \
+      eclipse-mosquitto:2.0 \
+      sh -c "mosquitto_passwd -b -c /mosquitto/config/passwd mqtt_user '$MQTT_PASSWORD'"
+    echo "✅ MQTT password file created at mosquitto/passwd"
 fi
 
 # Build the Docker image
