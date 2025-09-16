@@ -12,3 +12,6 @@ flask>=2.0.0
 
 # MQTT support
 paho-mqtt>=1.6.0
+
+# JSON schema validation
+jsonschema>=4.0.0

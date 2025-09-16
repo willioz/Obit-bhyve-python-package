@@ -33,7 +33,7 @@ pip install orbit-bhyve
 ### From Source
 
 ```bash
-git clone https://github.com/yourusername/orbit-bhyve-python-package.git
+git clone https://github.com/willioz/orbit-bhyve-python-package.git
 cd orbit-bhyve-python-package
 pip install -e .
 ```

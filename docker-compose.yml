@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # MQTT Broker
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: bhyve-mqtt-broker
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+    restart: unless-stopped
+
+  # Bhyve MQTT Gateway
+  bhyve-gateway:
+    build: .
+    container_name: bhyve-gateway
+    environment:
+      - BHYVE_USERNAME=${BHYVE_USERNAME}
+      - BHYVE_PASSWORD=${BHYVE_PASSWORD}
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+
+  # Web Dashboard
+  dashboard:
+    build: .
+    container_name: bhyve-dashboard
+    ports:
+      - "5001:5001"
+    environment:
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+    depends_on:
+      - mosquitto
+    restart: unless-stopped
+
+volumes:
+  mosquitto_data:
+  mosquitto_logs:
