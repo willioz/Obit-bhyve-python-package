@@ -18,11 +18,20 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Check if Docker Compose is installed
-if ! command -v docker-compose &> /dev/null; then
+# Check if Docker Compose is installed (v1 or v2)
+if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
     echo "❌ Docker Compose is not installed. Please install Docker Compose first."
     exit 1
 fi
+
+# Determine which Docker Compose command to use
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+else
+    DOCKER_COMPOSE_CMD="docker compose"
+fi
+
+echo "✅ Using Docker Compose command: $DOCKER_COMPOSE_CMD"
 
 # Create necessary directories
 echo "📁 Creating directories..."
@@ -62,11 +71,11 @@ docker build -t orbit-bhyve:latest .
 
 # Stop existing containers
 echo "🛑 Stopping existing containers..."
-docker-compose -f docker-compose.prod.yml down
+$DOCKER_COMPOSE_CMD -f docker-compose.prod.yml down
 
 # Start services
 echo "🚀 Starting services..."
-docker-compose -f docker-compose.prod.yml up -d
+$DOCKER_COMPOSE_CMD -f docker-compose.prod.yml up -d
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to start..."
@@ -98,11 +107,11 @@ echo "   http://your-domain.com (if configured)"
 echo "   http://localhost (local access)"
 echo ""
 echo "🔧 Management commands:"
-echo "   View logs: docker-compose -f docker-compose.prod.yml logs -f"
-echo "   Stop services: docker-compose -f docker-compose.prod.yml down"
-echo "   Restart services: docker-compose -f docker-compose.prod.yml restart"
+echo "   View logs: $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml logs -f"
+echo "   Stop services: $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml down"
+echo "   Restart services: $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml restart"
 echo "   Update services: ./deploy.sh"
 echo ""
 echo "📊 Monitor services:"
-echo "   docker-compose -f docker-compose.prod.yml ps"
+echo "   $DOCKER_COMPOSE_CMD -f docker-compose.prod.yml ps"
 echo "   docker stats"
